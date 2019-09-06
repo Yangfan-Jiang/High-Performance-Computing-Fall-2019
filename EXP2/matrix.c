@@ -37,7 +37,7 @@ int main()
             data->i = i;
             data->j = j;
             //getOneElem(data);
-            pthread_creat(&tid[i*N+j], &atr, getOneElem, (void*) data);
+            pthread_create(&tid[i*N+j], &attr, getOneElem, (void*) data);
         }
         
     for(i = 0; i < NUM_THREADS; i++)
