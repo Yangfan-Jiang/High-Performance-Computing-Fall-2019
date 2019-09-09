@@ -2,20 +2,20 @@
 #include<pthread.h>
 #include<stdlib.h>
 
-#define K 2
 #define NUM_THREADS 32
+#define K 2
 
 int M, N;
 
 int **A;
 int *x;
-int **y;
+int *y;
 int **B;
 int **C;
 
 typedef struct{
    int i;
-   int j;
+   int j;    
 }v;
 
 void* getOneElem(void *data) {
@@ -33,12 +33,10 @@ void init() {
     fscanf(fp, "%d%d", &M, &N);
     A = (int**)malloc(sizeof(int*)*M);
     x = (int*)malloc(sizeof(int)*N);
-    y = (int**)malloc(sizeof(int*)*M);
+    y = (int*)malloc(sizeof(int)*M);
 
-    // 填充向量y,每个进程读16个int
     for(i=0; i<M; i++) {
         A[i] = (int*)malloc(sizeof(int)*N);
-        y[i] = (int*)malloc(sizeof(int)*2);
     }
     for(i=0; i<M; i++) {
         for(j=0; j<N; j++) {
@@ -58,8 +56,8 @@ void* multiply(void *data) {
     end = d->j;
     for(i=start; i<=end; i++) {
         for(j=0; j<N; j++) {
-            y[i][0] += x[j]*A[i][j];
-        }
+	    y[i] += x[j]*A[i][j];
+	}
     }
 }
 
@@ -87,12 +85,12 @@ int main()
             pthread_join(tid[i], NULL);
     }
     double end = clock();
-    double time = (double)(end - start)/CLOCKS_PER_SEC;
-    printf("%lf\n",time);
-    FILE *fp = fopen("result1", "w");
+    double time = (double)(end-start)/CLOCKS_PER_SEC;
+    printf("%lf\n", time);
+    FILE *fp = fopen("result2", "w");
     for (i=0; i<M; i++) {
-        fprintf(fp, "%d 0 %d\n", i, y[i][0]);
-//	fprintf(fp, "%d 0 %d\n", i, y[i]);
+//      fprintf(fp, "%d 0 %d\n", i, y[i][0]);
+	fprintf(fp, "%d 0 %d\n", i, y[i]);
     }
     
     return 0;
