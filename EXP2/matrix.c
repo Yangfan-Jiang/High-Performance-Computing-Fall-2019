@@ -92,8 +92,7 @@ int main()
     FILE *fp = fopen("result1", "w");
     for (i=0; i<M; i++) {
         fprintf(fp, "%d 0 %d\n", i, y[i][0]);
-//	fprintf(fp, "%d 0 %d\n", i, y[i]);
     }
-    
+    fclose(fp);
     return 0;
 }

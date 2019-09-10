@@ -2,14 +2,17 @@
 #include<pthread.h>
 #include<stdlib.h>
 
-#define NUM_THREADS 32
 #define K 2
+#define NUM_THREADS 32
+
+//#define _GNU_SOURCE
 
 int M, N;
+int num_cpu = 1;
 
 int **A;
 int *x;
-int *y;
+int **y;
 int **B;
 int **C;
 
@@ -27,16 +30,18 @@ void* getOneElem(void *data) {
         C[i][j] += A[i][k]*B[k][j];
 }
 
-void init() {
+void init() {    
     int i, j, k;
     FILE* fp = fopen("data", "r");
     fscanf(fp, "%d%d", &M, &N);
     A = (int**)malloc(sizeof(int*)*M);
     x = (int*)malloc(sizeof(int)*N);
-    y = (int*)malloc(sizeof(int)*M);
+    y = (int**)malloc(sizeof(int*)*M);
 
+    // 填充向量y,每个进程读16个int
     for(i=0; i<M; i++) {
         A[i] = (int*)malloc(sizeof(int)*N);
+        y[i] = (int*)malloc(sizeof(int)*8);
     }
     for(i=0; i<M; i++) {
         for(j=0; j<N; j++) {
@@ -49,15 +54,36 @@ void init() {
     fclose(fp);
 }
 
+
+inline int set_cpu(int i) {
+    cpu_set_t mask;  
+    CPU_ZERO(&mask);  
+  
+    CPU_SET(i,&mask);  
+  
+    //printf("thread %u, i = %d\n", pthread_self(), i);  
+    if(-1 == pthread_setaffinity_np(pthread_self() ,sizeof(mask),&mask))  
+    {  
+        fprintf(stderr, "pthread_setaffinity_np erro\n");  
+        return -1;  
+    }  
+}
+
+
 void* multiply(void *data) {
     int start, end, i, j;
+    
+    if (set_cpu(++num_cpu)) {
+        return NULL;
+    }
+    
     v *d = (v*)data;
     start = d->i;
     end = d->j;
     for(i=start; i<=end; i++) {
         for(j=0; j<N; j++) {
-	    y[i] += x[j]*A[i][j];
-	}
+            y[i][0] += x[j]*A[i][j];
+        }
     }
 }
 
@@ -74,6 +100,7 @@ int main()
     int k;
     double start = clock();
     for(k=0; k<100; k++) {
+        num_cpu = 1;
         for(i=0; i < NUM_THREADS; i++) {
             v *data = (v*)malloc(sizeof(v));
             data->i = i*(M / NUM_THREADS);
@@ -85,13 +112,13 @@ int main()
             pthread_join(tid[i], NULL);
     }
     double end = clock();
-    double time = (double)(end-start)/CLOCKS_PER_SEC;
-    printf("%lf\n", time);
-    FILE *fp = fopen("result2", "w");
+    double time = (double)(end - start)/CLOCKS_PER_SEC;
+    printf("%lf\n",time);
+    FILE *fp = fopen("result_numa", "w");
     for (i=0; i<M; i++) {
-//      fprintf(fp, "%d 0 %d\n", i, y[i][0]);
-	fprintf(fp, "%d 0 %d\n", i, y[i]);
+        fprintf(fp, "%d 0 %d\n", i, y[i][0]);
     }
     fclose(fp);
+    
     return 0;
 }
