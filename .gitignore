@@ -1,5 +1,6 @@
 ## ignore these files ##
 *.png
+*.ppt
 *.aux
 *.log
 *.gz
@@ -7,4 +8,5 @@
 1731068*
 **/PPT
 *.pdf
+*.pptx
 
