@@ -2,15 +2,13 @@
 #include<pthread.h>
 #include<chrono>
 #include<ctime>
-#include<cmath>
-#include<semaphore.h>
 
-#define M 4096
-#define N 4096
-#define S 4096
+#define M 480
+#define N 480
+#define S 480
 #define block_m 4
 #define block_n 4
-#define block_s 2
+#define block_s 3
 #define THREAD_NUM (block_m)*(block_n)*(block_s)
 
 const int block_size_s = int(S/block_s);
@@ -34,22 +32,11 @@ void reduction();
 bool verify();
 
 int counter = 0;
-sem_t count_sem;
-sem_t barrier_sem;
-
 pthread_mutex_t barrier_mutex;
-pthread_barrier_t barrier;
-
-int step = 2;
 
 int main()
 {
     init_matrix();
-    
-    sem_init(&count_sem, 0, 1);
-    sem_init(&barrier_sem, 0, 0);
-    
-    pthread_barrier_init(&barrier, NULL, THREAD_NUM);
     
     pthread_t tid[THREAD_NUM];
     pthread_attr_t attr;
@@ -63,10 +50,10 @@ int main()
     for (int k=0; k < THREAD_NUM; k++) {
         pthread_create(&tid[k], NULL, p_matrix_multi, &thread_id[k]);
     }
-    
+
     for (int k=0; k < THREAD_NUM; k++)
         pthread_join(tid[k], NULL);
-    
+
     // Synchronization before this operation
     steady_clock::time_point end = steady_clock::now();
     steady_clock::duration d = end-start;
@@ -80,12 +67,11 @@ int main()
     end = steady_clock::now();
     d = end-start;
     cout << "serial: " << duration_cast<microseconds>(d).count()/1000000.0 << "s" << endl;
+    
     if(verify())
         cout << "verified successfully!" << endl;
     else
         cout << "wrong solution!" << endl;
-    cout << THREAD_NUM << "threads" << endl;
-    cout << M << endl;
     return 0;
 }
 
@@ -126,57 +112,18 @@ void* p_matrix_multi(void *k) {
     for(int s=tmp_s*block_size_s; s < tmp_s*block_size_s+block_size_s; s++) {
         private_C[num_proc][i-tmp_m*block_size_m][j-tmp_n*block_size_n] += A[i][s]*B[s][j];
     }
+    pthread_mutex_lock(&barrier_mutex);
+    counter++;
+    pthread_mutex_unlock(&barrier_mutex);
+    while(counter < THREAD_NUM);
     
-    sem_wait(&count_sem);
-    if (counter == THREAD_NUM-1) {
-        counter = 0;
-        for(int k=0; k < THREAD_NUM-1; k++)
-            sem_post(&barrier_sem);
-        sem_post(&count_sem);
-    } else {
-        counter++;
-        sem_post(&count_sem);
-        sem_wait(&barrier_sem);
-    }
-
-    /* tree reduction */
     
-    while(step < 2*block_s) {
-        if((num_proc%block_s)%step==0 && \
-            (num_proc+(step/2))%block_s < block_s && \
-            num_proc/block_s == (num_proc+step/2)/block_s) {
-            pthread_mutex_lock(&barrier_mutex);
-            pthread_mutex_unlock(&barrier_mutex);
-            for(int i=tmp_m*block_size_m; i < tmp_m*block_size_m+block_size_m; i++) {
-                for(int j=tmp_n*block_size_n; j < tmp_n*block_size_n+block_size_n; j++) {
-                    if(step >= block_s) {                       
-                        C2[i][j] =\
-                        private_C[num_proc][i-tmp_m*block_size_m][j-tmp_n*block_size_n] + \
-                        private_C[num_proc+(step/2)][i-tmp_m*block_size_m][j-tmp_n*block_size_n];
-                    } else {
-                        private_C[num_proc][i-tmp_m*block_size_m][j-tmp_n*block_size_n] += \
-                        private_C[num_proc+(step/2)][i-tmp_m*block_size_m][j-tmp_n*block_size_n];
-                    }
-                }
-            }
-        }
-        
-        pthread_barrier_wait(&barrier);
-        if(num_proc == 0)
-            step *= 2;
-        pthread_barrier_wait(&barrier);
-    }
-    
-
-    /*
     if(num_proc%block_s == 0) {
         for(int k=num_proc; k < num_proc+block_s; k+=1)
         for(int i=tmp_m*block_size_m; i < tmp_m*block_size_m+block_size_m; i++)
         for(int j=tmp_n*block_size_n; j < tmp_n*block_size_n+block_size_n; j++)
             C2[i][j] += private_C[k][i-tmp_m*block_size_m][j-tmp_n*block_size_n];
     }
-    */
-    
 }
 
 void print_ans() {
@@ -201,7 +148,7 @@ void print_ans() {
 bool verify() {
     for(int i=0;i < N; i++)
         for(int j=0; j < M; j++) {
-            if(fabs(C1[i][j]-C2[i][j]) > 0.0001)
+            if(abs(C1[i][j]-C2[i][j]) > 0.0001)
                 return false;
         }
     return true;

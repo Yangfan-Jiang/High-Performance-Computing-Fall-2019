@@ -1,0 +1,302 @@
+\documentclass{article}
+\usepackage[UTF8]{ctex}
+\usepackage{fancyhdr}
+\usepackage{extramarks}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{tikz}
+\usepackage[plain]{algorithm}
+\usepackage{algpseudocode}
+
+\usepackage{fontspec}
+
+\usepackage{graphicx}
+\usepackage{subfigure}
+
+\usepackage{geometry}
+\geometry{a4paper,scale=0.70}
+
+
+\usepackage{listings}
+\usepackage{xcolor}
+
+\usetikzlibrary{positioning}
+
+
+\lstset{
+    numbers=left, 
+    numberstyle= \tiny, 
+    basicstyle = \fontspec{Consolas},
+    keywordstyle = \fontspec{Consolas Bold},
+    commentstyle = \fontspec{Consolas Italic},
+    keywordstyle= \color{ blue!70},
+    commentstyle= \color{red!50!green!50!blue!50}, 
+    frame=shadowbox, % 阴影效果
+    rulesepcolor= \color{ red!20!green!20!blue!20} ,
+    escapeinside=``, % 英文分号中可写入中文
+    xleftmargin=0.5em,xrightmargin=0.5em, aboveskip=0.5em,
+    framexleftmargin=2em,
+    language=C,
+    showstringspaces=false
+} 
+
+
+\linespread{1.1}
+
+\pagestyle{fancy}
+\lhead{\hmwkAuthorName}
+\chead{\hmwkTitle }
+%\rhead{\firstxmark}
+\lfoot{\lastxmark}
+\cfoot{\thepage}
+
+\renewcommand\headrulewidth{0.4pt}
+\renewcommand\footrulewidth{0.4pt}
+
+\setlength\parindent{0pt}
+
+
+\newcommand{\hmwkTitle}{高性能编程实验\#3}
+\newcommand{\hmwkAuthorName}{\text{姜洋帆 17341068}}
+
+
+\title{
+    \centering\textbf{ \hmwkTitle}
+    \author{\hmwkAuthorName}
+}
+
+\renewcommand{\part}[1]{
+    \textbf{\large Part \Alph{partCounter}}
+    \stepcounter{partCounter}\\
+}
+
+
+
+
+
+\begin{document}
+
+\maketitle
+
+\section{Tasks}
+多线程协作实验
+\begin{itemize}
+    \item pthread线程间的同步函数的实现
+    \item 多线程矩阵分块乘法
+    \item 列出给出不同规模的加速比和效率
+\end{itemize}
+
+\section{实现pthread线程同步函数}
+按照实验要求，分别使用两种方式来实现同步函数，关键代码如下(这里只列出了代码的关键部分，完整代码见报告附件)
+\newline
+\textbf{忙等待}
+\begin{lstlisting}
+int counter = 0;
+pthread_mutex_t barrier_mutex;
+
+void* p_matrix_multi(void *k) {
+
+    /* parallel matrix multiply */
+
+    pthread_mutex_lock(&barrier_mutex);
+    counter++;
+    pthread_mutex_unlock(&barrier_mutex);
+    while(counter < THREAD_NUM);
+
+    ...
+    // Synchronization before this operation
+    /* reduction results of each thread */
+    ...
+}
+\end{lstlisting}
+
+\textbf{阻塞等待}
+
+\begin{lstlisting}
+sem_t count_sem;
+sem_t barrier_sem;
+
+pthread_mutex_t barrier_mutex;
+
+void* p_matrix_multi(void *k) {
+
+    /* parallel matrix multiply */
+
+    sem_wait(&count_sem);
+    if (counter == THREAD_NUM-1) {
+        counter = 0;
+        for(int k=0; k < THREAD_NUM-1; k++)
+            sem_post(&barrier_sem);
+        sem_post(&count_sem);
+    } else {
+        counter++;
+        sem_post(&count_sem);
+        sem_wait(&barrier_sem);
+    }
+
+    ...
+    // Synchronization before this operation
+    /* reduction results of each thread */
+    ...
+}
+\end{lstlisting}
+\newline
+\textbf{注：这各阻塞函数是根据老师实验课提供的PPT编写的，但是实际上存在bug
+，counter重置似乎有点问题，会导致该同步只能使用一次}
+\newline
+\textbf{测试函数}
+为了验证并行矩阵分块算法正确性，使用verify函数进行验证(比较并行算法与串行算法结果的差异)
+\begin{lstlisting}
+bool verify() {
+    for(int i=0;i < N; i++)
+        for(int j=0; j < M; j++) {
+            if(fabs(C1[i][j]-C2[i][j]) > 0.0001)
+                return false;
+        }
+    return true;
+} 
+\end{lstlisting}
+
+\textbf{经过测试，两种同步方式实现均能保证并行算法得到正确结果}
+
+\section{实现分块矩阵乘法}
+\subsection{Method}
+根据实验要求实现分块矩阵乘法，每个线程负责实现一个分块矩阵的乘法，全部线程完成任务后，需要进行一次同步（使用上面实现的同步方法），然后进行归并求和。
+\subsection{Codes}
+\textbf{使用pthread实现矩阵分块乘法，主要的运算操作代码入下：}
+\begin{lstlisting}
+void* p_matrix_multi(void *k) {
+    // [block_m, block_n, block_s]          20 * 2 * 5
+    int num_proc = *(int *)k;
+
+    int tmp_m = num_proc / (block_n*block_s);
+    int tmp_n = (num_proc / block_s) % block_n;
+    int tmp_s = num_proc % block_s;
+
+    for(int i=tmp_m*block_size_m; \
+        i < tmp_m*block_size_m+block_size_m; i++)
+    for(int j=tmp_n*block_size_n; \
+        j < tmp_n*block_size_n+block_size_n; j++)
+    for(int s=tmp_s*block_size_s; \ 
+        s < tmp_s*block_size_s+block_size_s; s++) {
+        private_C[num_proc][i-tmp_m*block_size_m][j-tmp_n*block_size_n]\
+         += A[i][s]*B[s][j];
+    }
+
+    // Synchronization before this operation
+    // reduction
+}
+\end{lstlisting}
+其中private\_C本意为线程的私有变量，代表每个线程的运算结果，这里为了方便操作，直接使用全局数组，每个线程操作不同的第一维，所以本质上还是相互间没有依赖
+，不同线程间的任务不会产生race condition.
+
+\textbf{
+reduction方法：采用两种方式进行结果的reduction，分别是由一个线程求和以及多线程树形求和，关键代码如下
+}
+\newline
+\textbf{单个线程求和}
+\begin{lstlisting}
+if(num_proc%block_s == 0) {
+    for(int k=num_proc; k < num_proc+block_s; k+=1)
+    for(int i=tmp_m*block_size_m; i < tmp_m*block_size_m+block_size_m; i++)
+    for(int j=tmp_n*block_size_n; j < tmp_n*block_size_n+block_size_n; j++)
+        C2[i][j] += private_C[k][i-tmp_m*block_size_m][j-tmp_n*block_size_n];
+}
+\end{lstlisting}
+
+\textbf{树形求和}
+\newline
+这里采用的策略是，每次与有剩下数据的相邻线程进行求和，第一次从偶数线程开始，获取相邻的奇数线程数据进行归并。每一次（每一层）求和结束后，需要通过
+同步操作防止race condition，这里选择使用阻塞等待的同步方式。
+由于老师PPT提供的非阻塞同步有bug，导致只能使用一次同步函数，所以树形求和每层求和结束后的同步使用pthread库函数pthread\_barrier\_wait来实现。
+\newline
+数据所在线程的示意情况如下：
+\newline
+[0,1,2,3,4,5,6,7,8] ==> [0,2,4,6] ==> [0,4] ==>[0]
+\begin{lstlisting}
+int step = 2;
+/* tree reduction */
+while(step < 2*block_s) {
+    if((num_proc%block_s)%step==0 && \
+        (num_proc+(step/2))%block_s < block_s && \
+        num_proc/block_s == (num_proc+step/2)/block_s) {
+        pthread_mutex_lock(&barrier_mutex);
+        pthread_mutex_unlock(&barrier_mutex);
+        for(int i=tmp_m*block_size_m; \
+        i < tmp_m*block_size_m+block_size_m; i++) {
+            for(int j=tmp_n*block_size_n; \
+            j < tmp_n*block_size_n+block_size_n; j++) {
+                if(step >= block_s) {                       
+                    C2[i][j] =\
+                    private_C[num_proc][i-tmp_m*block_size_m]\
+                        [j-tmp_n*block_size_n] + \
+                    private_C[num_proc+(step/2)]\
+                    [i-tmp_m*block_size_m][j-tmp_n*block_size_n];
+                } else {
+                    private_C[num_proc]\
+                    [i-tmp_m*block_size_m][j-tmp_n*block_size_n] += \
+                    private_C[num_proc+(step/2)]\
+                    [i-tmp_m*block_size_m][j-tmp_n*block_size_n];
+                }
+            }
+        }
+    }
+    
+    pthread_barrier_wait(&barrier);
+    if(num_proc == 0)
+        step *= 2;
+    pthread_barrier_wait(&barrier);
+}
+\end{lstlisting}
+
+两种求和以及两种同步经过测试，结果正确
+\begin{figure}[htpb]
+    \centering
+    \includegraphics[scale=0.65]{1.png}    
+    \caption{TEST}
+\end{figure}
+
+
+
+\subsection{加速比和效率}
+在集群上进行实验，观察不同规模输入下，不同线程数和加速比之间的关系，为了方便比较，统一使用非阻塞同步、树形线程归并的代码进行实验
+\begin{table}[htbp]  
+    \centering
+    \caption{加速比/效率}  
+    \begin{tabular}{cccccccc}
+    \hline  
+    Size&1&2&4&8&16&32&64 \\  
+    \hline
+    128&0.59/0.59&1.09/0.54&2.16/0.54&3.24/0.40&4.82/0.30&3.75/0.11&3.35/0.05 \\  
+    256&0.54/0.54&1.06/0.53&1.96/0.49&3.20/0.40&6.06/0.37&6.44/0.20&12.58/0.19 \\  
+    512&0.55/0.55&0.91/0.45&1.93/0.48&5.69/0.71&9.20/0.57&10.31/0.32&14.74/0.23 \\
+    1024&0.56/0.56&1.06/0.53&1.93/0.48&4.07/0.50&7.42/0.46&10.89/0.34&12.02/0.18 \\
+    2048&0.52/0.52&0.91/0.45&1.61/0.40&9.54/1.19&12.83/0.80&30.65/0.95&35.61/0.55 \\
+    4096&0.50/0.50&1.13/0.56&1.64/0.41&4.29/0.53&8.47/0.52&10.67/0.26&51.53/0.80 \\
+    \hline  
+    \end{tabular}  
+\end{table}  
+\newline
+可以看出，大致上的情况为，问题输入规模越大，加速比以及效率越高。对同一个问题而言，线程数越多，效率越低。
+但在实验中出现个别异常数据，比如4096规模下32核运行的结果，加速比和效率不如更小规模(2048)相同线程
+的情况;2048规模下8线程结果，效率大于1.
+\newline 目前重复了几次实验，大致都会得到这几项特殊的结果（结果都通过verify函数的验证），不知道什么原因，猜测可能和
+矩阵划分以及CPU cache参数有关。。。可能因为某种原因(矩阵划分方式等等)导致cache命中率出现问题
+\newline
+
+\section{优化思考}
+\begin{itemize}
+    \item 通过适当的划分矩阵，使得数据贴近cache，可以减少cache miss，降低访存压力，达到加速的效果
+    \item 当矩阵划分过小或者在某些数据划分边界会出现伪共享
+    \item 可以在最初构造AB矩阵时通过数据填充等方式，避免伪共享，也可以给每个线程分配私有的空间，再进行操作，但是会增加赋值开销以及空间开销
+\end{itemize}
+
+\section{Note}
+\textbf{完整代码和脚本文件见附件，在集群上测试时，
+直接执行./compile.sh即可，会编译并执行pbs脚本提交作业，输出
+结果包含并行程序用时、串行程序用时、线程数、问题规模以及验证函数
+的结果}
+
+
+\end{document}
