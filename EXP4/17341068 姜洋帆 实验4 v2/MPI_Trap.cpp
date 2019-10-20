@@ -1,5 +1,4 @@
 #include<iostream>
-#include<cstdlib>
 #include<mpi.h>
 #include<cmath>
 
@@ -16,8 +15,8 @@ const int d = 1;
 
 int main(int argc, char* argv[])
 {
-    int my_rank, comm_sz, n = 2147483647, local_n;
-    double a = 0, b = 1, h, local_a, local_b;
+    int my_rank, comm_sz, n = 4096, local_n;
+    double a = 0.0, b = 1.0, h, local_a, local_b;
     double local_int, total_int;
     int source;
     const int k = sqrt(n);
@@ -49,7 +48,7 @@ int main(int argc, char* argv[])
         } else {
             total_int = local_int;
             for (source = 1; source < comm_sz; source++) {
-                MPI_Recv(&local_int, 1, MPI_DOUBLE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE); 
+                MPI_Recv(&local_int, 1, MPI_DOUBLE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 total_int += local_int;
             }
         }
@@ -64,9 +63,6 @@ int main(int argc, char* argv[])
     MPI_Finalize();
     
     if (my_rank == 0) {
-        cout << "size" << n << endl;
-        if(mode == 0) cout << "point to point" << endl;
-        else cout << "Reduce" << endl;
         cout << "elapsed: "<< (end - start)*1000 << "ms" << endl;
         cout << "a = " << a << ", b = " << b << ", processes number: " << comm_sz << endl;
         cout << "result: " << total_int << endl;

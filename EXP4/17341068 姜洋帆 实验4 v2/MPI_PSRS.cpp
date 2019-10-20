@@ -11,7 +11,7 @@ using namespace std;
 int main() {
     int comm_sz, my_rank;
     double start, end;
-    bool ordered;  // local data correct?
+    bool ordered;  // if local data correct
     
     /* get the total number of element to sort */
     unsigned long total_num;
@@ -137,11 +137,6 @@ int main() {
     }
 
     // 4. merge sorted partitions
-    unsigned long *sortedPartition = new unsigned long[new_length];
-    unsigned long *tmpIndex = new unsigned long[comm_sz];
-    for(int i=0; i<comm_sz; i++)
-        tmpIndex[i] = new_parIndex[i];
-
     // using quick sort for test
     sort(recvPartition, recvPartition+new_length);
     
