@@ -1,0 +1,6 @@
+#PBS -N Matrix
+#PBS -l nodes=1:ppn=16
+source /public/software/profile.d/mpi_openmpi-intel-2.1.2.sh
+cd $PBS_O_WORKDIR
+mpirun -np 16 ./matrix
+
