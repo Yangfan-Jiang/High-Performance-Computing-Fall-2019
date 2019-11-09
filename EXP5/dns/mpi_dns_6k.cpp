@@ -3,8 +3,9 @@
 #include<mpi.h>
 #include<cmath>
 #include"omp.h"
+#include<fstream>
 
-#define N 32768
+#define N 6912
 
 using namespace std;
 
@@ -147,16 +148,16 @@ int main() {
     MPI_Barrier(MPI_COMM_WORLD);
     p_end = MPI_Wtime();
     
-    
     init_matrix_s(A, B, C);
     
     MPI_Barrier(MPI_COMM_WORLD);
     if(my_rank == 0) {
-        init_matrix_s(A, B, C);
-        start = MPI_Wtime();
-        matrix_multi_serial(A, B, C);
-        end = MPI_Wtime();
-        s_time = end - start;
+        ifstream input("result6912.dat", ios::in);
+        for(int i=0; i<N; i++) {
+            for(int j=0; j<N; j++) {
+                input >> C[i][j];
+            }
+        }
     }
     MPI_Barrier(MPI_COMM_WORLD);
     
@@ -181,13 +182,9 @@ int main() {
         parallel_time = p_end - p_start;
         cout << "\nVerify successfully!" << endl;
         cout << "parallel elapsed:" << parallel_time << "s" << endl;
-        cout << "serial   elapsed:" << s_time << "s" << endl;
         cout << " --------- " << endl;
         cout << "size: " << N << endl;
         cout << "num of proc " << comm_sz << endl;
-        cout << "Tp: " << parallel_time << endl;
-        cout << "speed up: " << s_time*1.0/parallel_time << endl;
-        cout << "efficiency: " << s_time*1.0/parallel_time/comm_sz << endl << endl;;
     }
 
     MPI_Finalize();
@@ -224,9 +221,13 @@ void init_matrix_s(double **A, double **B, double **C) {
 }
 
 void matrix_multi_serial(double **A, double **B, double **C) {
-    for(int i=0; i<N; i++) 
-        for(int j=0; j<N; j++)
-            for(int k=0; k<N; k++) {
+    int i, j, k;
+    for(i=0; i<N; i++) {
+#       pragma omp parallel for shared(A,B,C) private(k)
+        for(j=0; j<N; j++) {
+            for(k=0; k<N; k++) {
                 C[i][j] += A[i][k]*B[k][j];
             }
+        }
+    }
 }
