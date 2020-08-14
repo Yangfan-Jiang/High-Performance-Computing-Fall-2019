@@ -8,3 +8,4 @@ The assignments of Foundation Level Programming for High-Performance Computing (
 - lab5: Parallel matrix multiplication with MPI+OpenMP - cannon, dns
 - lab6: CUDA - simple matrix addition
 - lab7: CUDA - matrix multiplication
+- lab8: Optimize GPU matrix multiplication
