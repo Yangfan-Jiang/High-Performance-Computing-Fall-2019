@@ -9,3 +9,4 @@ The assignments of Foundation Level Programming for High-Performance Computing (
 - lab6: CUDA - simple matrix addition
 - lab7: CUDA - matrix multiplication
 - lab8: Optimize GPU matrix multiplication
+- final project: list ranking + Sparse matrix multiplication
