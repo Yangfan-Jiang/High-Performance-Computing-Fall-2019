@@ -208,7 +208,8 @@ int matrix_gen(int N, int Q)
                     nnz += (1<<(i)) * (1<<(j));
 #ifdef INDICES_STARTING_AT_0
                     // Matrix indices starting at '0' in C language.
-                    print_dense_matrix_to_file(matrix_file, bound_k, ( 1<< (i+1) ) -2, bound_l-1, ( 1<< (j+1) ) -2);
+                    //print_dense_matrix_to_file(matrix_file, bound_k, ( 1<< (i+1) ) -2, bound_l-1, ( 1<< (j+1) ) -2);
+                    print_dense_matrix_to_file(matrix_file, bound_k, ( 1<< (i+1) ) -2, bound_l, ( 1<< (j+1) ) -2);
 #else
                     // Matrix indices starting at '1' in Fortran and MatLab.
                     print_dense_matrix_to_file(matrix_file, bound_k+1, (1<< (i+1)) -1, bound_l+1, (1<< (j+1))-1);

@@ -367,21 +367,21 @@ int main(int argc,char *argv[ ])
 {
 
     int N=12, Q=12;
-//    if(argc<2)
-//    {
-//        printf("Please input a positive no. as the level of bases to be generated, i.e., 12!\n");
-//        return -1;
-//    }
-//    else
-//    {
-//        if(atoi(argv[1])<=0)
-//        {
-//            printf("Please input a positive no. as the level of bases to be generated, i.e., 12!\n");
-//            return -2;
-//        }
-//
-//        N=Q=atoi(argv[1]);
-//    }
+    if(argc<2)
+    {
+        printf("Please input a positive no. as the level of bases to be generated, i.e., 12!\n");
+        return -1;
+    }
+    else
+    {
+        if(atoi(argv[1])<=0)
+        {
+            printf("Please input a positive no. as the level of bases to be generated, i.e., 12!\n");
+            return -2;
+        }
+
+        N=Q=atoi(argv[1]);
+    }
     matrix_gen(N, Q);
     return 0;
 }

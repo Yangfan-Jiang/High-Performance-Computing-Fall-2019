@@ -82,19 +82,15 @@ int* gen_linked_list_2(unsigned int N)
     return list;
 }
 
+
 /*
 int main()
 {
-	int N=21;
-    //int N=10000000;
+
+    int N=10000000;
     int* qq=NULL;
 	int i;
-    // qq=gen_linked_list_1(N);
-    // printf("\nhere is the list\n");
-    // for(i=0; i<N; i++)
-        // printf("%3d ", qq[i]);
-    // printf("\n");
-    // free(qq);
+
     qq=gen_linked_list_2(N);
     //printf("\nhere is the new list\n");
 	printf("%3d ", N);  //输出链表元素个数
@@ -109,3 +105,4 @@ int main()
 
 }
 */
+
